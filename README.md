@@ -35,3 +35,7 @@ for indexing configuration, isolated browser QA and remaining production checks.
 ## Preservation
 
 The replaced dirty and untracked workspace was archived at `.local-backups/pre-spotify-rebuild-20260918-043507/workspace.tar.gz`, with a manifest and Git status. Secrets, generated artifacts, dependencies, and internal runtime state were excluded. The original `.env` remains local and ignored. The repository history is retained.
+
+## About the creator
+
+Created by [Animesh Sharma](https://animesh.cc). For product design and development work, visit [Hire Animesh](https://hire.animesh.cc).
