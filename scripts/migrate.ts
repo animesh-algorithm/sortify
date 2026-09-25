@@ -1,11 +1,15 @@
 import nextEnv from "@next/env";
-import postgres from "postgres";
-import { drizzle } from "drizzle-orm/postgres-js";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
+import { migrate } from "drizzle-orm/libsql/migrator";
 nextEnv.loadEnvConfig(process.cwd());
-const client = postgres(process.env.DATABASE_URL!, { max: 1 });
+const client = createClient({
+  url: process.env.TURSO_DATABASE_URL!,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
 try {
-  await migrate(drizzle(client), { migrationsFolder: "./drizzle" });
+  await client.execute("PRAGMA foreign_keys = ON");
+  await migrate(drizzle(client), { migrationsFolder: "./drizzle-turso" });
 } finally {
-  await client.end();
+  client.close();
 }

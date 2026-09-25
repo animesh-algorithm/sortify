@@ -32,11 +32,7 @@ export async function tokenExchange(params: URLSearchParams) {
 }
 async function token(userId: string, force = false) {
   return db().transaction(async (tx) => {
-    const [u] = await tx
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .for("update");
+    const [u] = await tx.select().from(users).where(eq(users.id, userId));
     if (!u) throw new Error("Reconnect Spotify");
     return resolveToken(
       u,

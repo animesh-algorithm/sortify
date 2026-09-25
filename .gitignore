@@ -50,3 +50,6 @@ next-env.d.ts
 .local-backups/
 /test-results/
 /playwright-report/
+
+# Local libSQL development databases
+/sortify.db*

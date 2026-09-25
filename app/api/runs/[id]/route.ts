@@ -44,7 +44,9 @@ export async function PATCH(
         z.object({
           action: z.literal("recluster"),
           revision: z.number().int(),
-          mode: z.enum(["groups", "activity", "artist", "blend"]).default("blend"),
+          mode: z
+            .enum(["groups", "activity", "artist", "blend"])
+            .default("blend"),
         }),
         z.object({ action: z.literal("cancel") }),
         z.object({ action: z.literal("resume") }),
@@ -55,8 +57,7 @@ export async function PATCH(
       const [r] = await tx
         .select()
         .from(runs)
-        .where(and(eq(runs.id, id), eq(runs.userId, u.id)))
-        .for("update");
+        .where(and(eq(runs.id, id), eq(runs.userId, u.id)));
       if (!r) throw new Error("Run not found");
       if ("revision" in input && r.revision !== input.revision)
         throw new Error("Revision changed");

@@ -2,13 +2,13 @@
 
 A private music organizer: connect Spotify → choose sources → organize → review and edit → approve → create new private playlists.
 
-Standard Next.js 16 / React 19, Drizzle on Neon Postgres, Spotify Authorization Code OAuth, and Inngest durable jobs. ReccoBeats enrichment runs only on the server. No legacy database is migrated.
+Standard Next.js 16 / React 19, Drizzle on Turso/libSQL, Spotify Authorization Code OAuth, and Inngest durable jobs. ReccoBeats enrichment runs only on the server. Existing Neon data is preserved; transfer requires the old database to be accessible.
 
 ## Run locally
 
 Use Node 22.13 or newer. `npm install`, copy `.env.example` into `.env.local`, and fill in the configuration. Existing `.env` was deliberately preserved; update the old Spotify redirect in the Spotify developer dashboard and your local environment to `http://127.0.0.1:3000/api/spotify/callback`.
 
-- Use a fresh Neon database and set `DATABASE_URL`; do not point this migration at a legacy database.
+- Set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for a hosted libSQL database, or use `file:./sortify.db` without a token locally.
 - Set Spotify client ID, client secret, and exact redirect URI.
 - Set `TOKEN_ENCRYPTION_KEY` to 32 random bytes encoded in base64 (`openssl rand -base64 32`). Changing it invalidates existing encrypted tokens.
 - Sortify accepts all Spotify accounts that Spotify permits to authorize your app; there is no application account allowlist.
@@ -18,7 +18,7 @@ Run `npm run db:migrate`, then `npm run dev -- --hostname 127.0.0.1`. Start Inng
 
 ## Deploy on Vercel
 
-Use the standard Next.js preset and Node 22 or newer. Configure the same environment variables, production Spotify callback, and Inngest event/signing keys. Run the migration against the fresh Neon database before onboarding. Register `/api/inngest` with Inngest (or use its Vercel integration). Both job functions are exposed there; the route has a 60-second execution budget and work is broken into durable steps.
+Use the standard Next.js preset and Node 22 or newer. Configure the same environment variables, production Spotify callback, and Inngest event/signing keys. Run the migration against the Turso database before onboarding. Register `/api/inngest` with Inngest (or use its Vercel integration). Both job functions are exposed there; the route has a 60-second execution budget and work is broken into durable steps.
 
 Confirm the Spotify app's quota/access mode, owner Premium subscription, and account allowlist in the developer dashboard before live testing. Development Mode imports only owned or collaborative playlists, plus Liked Songs. Requests use `/items` and `POST /me/playlists`.
 
@@ -35,6 +35,14 @@ for indexing configuration, isolated browser QA and remaining production checks.
 ## Preservation
 
 The replaced dirty and untracked workspace was archived at `.local-backups/pre-spotify-rebuild-20260918-043507/workspace.tar.gz`, with a manifest and Git status. Secrets, generated artifacts, dependencies, and internal runtime state were excluded. The original `.env` remains local and ignored. The repository history is retained.
+
+## Turso cutover
+
+Create a **libSQL** database in Turso (the Drizzle driver uses `@libsql/client`), then set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` in Vercel Production and locally. Apply `npm run db:migrate` before deployment. Keep the existing Spotify callback and token encryption key unchanged. The original Postgres migrations remain in `drizzle/`; SQLite migrations are in `drizzle-turso/`.
+
+If Neon becomes accessible, `npm run db:import-neon` copies all five application tables from `NEON_DATABASE_URL` (or the preserved `DATABASE_URL`) into an **empty** migrated Turso database. The source is read in a read-only snapshot; destination inserts are atomic and counts are verified. It refuses to overwrite existing destination records. Keep the same `TOKEN_ENCRYPTION_KEY` to decrypt imported Spotify credentials. Do this before onboarding accounts into the new database. If the Neon transfer allowance remains exhausted, historical data cannot be read or transferred yet; reconnecting Spotify to a fresh Turso database creates a new account session without deleting Neon data.
+
+The client refreshes active jobs every ten seconds, stops polling once idle, and skips background-tab polls. Returning to the tab refreshes state. This reduces repeated database reads and data transfer.
 
 ## About the creator
 

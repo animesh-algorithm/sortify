@@ -16,20 +16,20 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "probe:recco": "tsx scripts/probe-recco.ts",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "db:import-neon": "tsx scripts/import-neon.ts"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "drizzle-orm": "0.45.2",
     "inngest": "^3.40.0",
     "next": "16.3.4",
-    "postgres": "^3.4.7",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "server-only": "^0.0.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.8",
     "@playwright/test": "^1.63.0",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
@@ -37,6 +37,7 @@
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.3.4",
+    "postgres": "^3.4.9",
     "prettier": "^3.9.8",
     "tsx": "^4.20.0",
     "typescript": "5.9.3"

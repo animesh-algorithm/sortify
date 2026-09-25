@@ -2,11 +2,11 @@
 
 ## Storage and authentication
 
-The initial Postgres migration creates users, hashed server-side sessions, runs, a global public-feature cache, and per-suggestion publication operations. Account identity is the Spotify profile ID, not email. Sortify accepts any Spotify account permitted to authorize the Spotify app, without an application account allowlist. Tokens use authenticated AES-256-GCM encryption with a unique nonce. Refresh runs inside a row-locked transaction to serialize rotation across requests. Sessions last seven days, use HttpOnly/SameSite=Lax cookies (Secure in production), and are rotated at sign-in. OAuth state is random, cookie-bound, expires after ten minutes, and is cleared before code exchange. Disconnect deletes credentials, sessions, and user runs. Mutating app endpoints require an exact same-origin header and an authenticated session. Run reads and mutations scope to the session user.
+The Turso/libSQL migration creates users, hashed server-side sessions, runs, a global public-feature cache, and per-suggestion publication operations. Account identity is the Spotify profile ID, not email. Sortify accepts any Spotify account permitted to authorize the Spotify app, without an application account allowlist. Tokens use authenticated AES-256-GCM encryption with a unique nonce. Refresh runs inside a libSQL write transaction (serialized by the database writer lock) to serialize rotation across requests. Sessions last seven days, use HttpOnly/SameSite=Lax cookies (Secure in production), and are rotated at sign-in. OAuth state is random, cookie-bound, expires after ten minutes, and is cleared before code exchange. Disconnect deletes credentials, sessions, and user runs. Mutating app endpoints require an exact same-origin header and an authenticated session. Run reads and mutations scope to the session user.
 
 ## Jobs and checkpoints
 
-A partial unique Postgres index enforces one active organization or publication run per user. Inngest limits execution to one invocation per run for each job type. Import page cursors, completed-source IDs, and enrichment cursors are persisted in addition to Inngest steps, so fresh resume events do not inflate counts or repeat completed pages of work. Spotify pagination rejects unexpected origins and repeated links. Imports deduplicate IDs while retaining all source memberships. Local files, episodes, missing and unplayable tracks are skipped.
+A partial unique SQLite index enforces one active organization or publication run per user. Inngest limits execution to one invocation per run for each job type. Import page cursors, completed-source IDs, and enrichment cursors are persisted in addition to Inngest steps, so fresh resume events do not inflate counts or repeat completed pages of work. Spotify pagination rejects unexpected origins and repeated links. Imports deduplicate IDs while retaining all source memberships. Local files, episodes, missing and unplayable tracks are skipped.
 
 Import is checkpointed per source page, enrichment per two tracks. Step outputs contain small cursors/counts instead of full libraries. Provider retries have a 45-second transport budget. Cancellation is checked between steps and persisted updates require a non-cancelled run. Publishing cannot be cancelled once approved writes have started. Transport uses timeouts, bounded retries, and Retry-After handling. Large Retry-After values return control to durable retries rather than holding a Vercel request open. Non-idempotent writes never retry network failures or 5xx responses inside the transport.
 
@@ -55,7 +55,7 @@ Playlist creation and each append run in separate durable steps. Each append sto
 
 ## Boundaries
 
-No automatic publishing, playback, new-song discovery, ongoing sync, or edits to existing playlists. Inngest/Neon production behavior, Spotify account access, and actual private playlist creation require the live rollout described in validation.md. Browser fixtures exercise UI behavior rather than claiming a live integration result.
+No automatic publishing, playback, new-song discovery, ongoing sync, or edits to existing playlists. Inngest/Turso production behavior, Spotify account access, and actual private playlist creation require the live rollout described in validation.md. Browser fixtures exercise UI behavior rather than claiming a live integration result.
 
 ## Provider references
 

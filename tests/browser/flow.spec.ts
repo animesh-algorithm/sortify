@@ -146,6 +146,7 @@ test("one-click reclustering and explicit import-all keep individual actions vis
 });
 for (const width of [375, 768, 1024, 1440])
   test(`guided flow at ${width}px`, async ({ page }) => {
+    await page.clock.install();
     await page.setViewportSize({ width, height: 1000 });
     let run: Record<string, unknown> | null = null;
     let publications: unknown[] = [];
@@ -239,6 +240,7 @@ for (const width of [375, 768, 1024, 1440])
         enriched: 0,
       },
     };
+    await page.clock.fastForward(10000);
     await expect(page.getByRole("status")).toContainText("2 songs gathered");
     await expect(page.getByRole("button", { name: "Resume" })).toHaveCount(0);
     expect(
@@ -249,6 +251,7 @@ for (const width of [375, 768, 1024, 1440])
       status: "enriching",
       data: { ...(run!.data as object), enriched: 1 },
     };
+    await page.clock.fastForward(10000);
     await expect(page.getByRole("status")).toContainText("1 song left");
     await expect(page.getByRole("progressbar")).toHaveAttribute("value", "1");
     expect(
@@ -286,6 +289,7 @@ for (const width of [375, 768, 1024, 1440])
         algorithm: "v1",
       },
     };
+    await page.clock.fastForward(10000);
     await page.getByText("Find your next listen.").waitFor();
     await page.getByRole("button", { name: "Edit Easy flow playlist" }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
@@ -366,6 +370,7 @@ for (const width of [375, 768, 1024, 1440])
       )
         libraryRequests++;
     });
+    await page.clock.install();
     await page.setViewportSize({ width, height: 1000 });
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
@@ -447,6 +452,7 @@ test("OAuth state cookie is httpOnly and callback rejects forged and replayed st
 });
 
 test("remaining song count follows live progress", async ({ page }) => {
+  await page.clock.install();
   let analyzed = 2;
   await page.route("**/api/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -482,6 +488,7 @@ test("remaining song count follows live progress", async ({ page }) => {
   await page.goto("/app");
   await expect(page.getByRole("status")).toContainText("8 songs left");
   analyzed = 6;
+  await page.clock.fastForward(10000);
   await expect(page.getByRole("status")).toContainText("4 songs left", {
     timeout: 5000,
   });
@@ -597,4 +604,45 @@ test("live playlist preview stays compact while work continues", async ({
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test("state polling stops once a job finishes instead of rereading idle history", async ({
+  page,
+}) => {
+  let reads = 0;
+  await page.clock.install();
+  await page.route("**/api/**", async (route) => {
+    if (new URL(route.request().url()).pathname === "/api/sources") {
+      await route.fulfill({ json: [] });
+      return;
+    }
+    reads++;
+    await route.fulfill({
+      json: {
+        user: { name: "Listener" },
+        publications: [],
+        runs: [
+          {
+            id: "polling-run",
+            status: reads === 1 ? "queued" : "ready",
+            mode: "blend",
+            revision: 0,
+            approvedRevision: null,
+            error: null,
+            data: { sources: [], tracks: [], suggestions: [], enriched: 0 },
+          },
+        ],
+      },
+    });
+  });
+  await page.goto("/app");
+  await expect(page.getByText("Getting ready…")).toBeVisible();
+  expect(reads).toBe(1);
+  await page.clock.fastForward(9000);
+  expect(reads).toBe(1);
+  await page.clock.fastForward(1000);
+  await expect.poll(() => reads).toBe(2);
+  await expect(page.getByText("Getting ready…")).not.toBeVisible();
+  await page.clock.fastForward(60000);
+  expect(reads).toBe(2);
 });

@@ -273,7 +273,7 @@ export default function Sortify() {
               setup:
                 "Spotify credentials and callback URL need to be configured.",
               database_setup:
-                "Connect a real Postgres database and run migrations before connecting Spotify.",
+                "Configure the Turso database and run migrations before connecting Spotify.",
               encryption_setup:
                 "TOKEN_ENCRYPTION_KEY must contain 32 random bytes encoded as base64.",
             } as Record<string, string>
@@ -282,10 +282,8 @@ export default function Sortify() {
         );
       void refresh();
     }, 0);
-    const timer = setInterval(() => void refresh(), 3000);
     return () => {
       clearTimeout(first);
-      clearInterval(timer);
     };
   }, [refresh]);
   useEffect(() => {
@@ -300,6 +298,32 @@ export default function Sortify() {
       run &&
       ["queued", "importing", "enriching", "analyzing"].includes(run.status),
     publishing = run && ["publishing", "publish_failed"].includes(run.status);
+  const polling = state.runs.some((item) =>
+    ["queued", "importing", "enriching", "analyzing", "publishing"].includes(
+      item.status,
+    ),
+  );
+  useEffect(() => {
+    if (!polling) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      if (document.visibilityState === "visible") await refresh();
+      if (!stopped) timer = setTimeout(tick, 10000);
+    };
+    timer = setTimeout(tick, 10000);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [polling, refresh]);
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refresh]);
   const imported = state.publications.filter((p) => p.runId === run?.id);
   const pendingSelection = suggestions.filter(
     (s) => s.trackIds.length && !imported.some((p) => p.suggestionId === s.id),

@@ -6,10 +6,11 @@ export function spotifySetupError(): string | null {
   )
     return "setup";
   try {
-    const database = new URL(process.env.DATABASE_URL ?? "");
+    const database = new URL(process.env.TURSO_DATABASE_URL ?? "");
     if (
-      !["postgres:", "postgresql:"].includes(database.protocol) ||
-      database.hostname === "host"
+      !["libsql:", "https:", "file:"].includes(database.protocol) ||
+      (database.protocol !== "file:" && !process.env.TURSO_AUTH_TOKEN) ||
+      (process.env.NODE_ENV === "production" && database.protocol === "file:")
     )
       return "database_setup";
   } catch {

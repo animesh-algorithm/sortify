@@ -8,6 +8,7 @@ import { runs } from "../../../db/schema";
 import { dispatchRun } from "../../../lib/dispatch";
 import { ALGORITHM } from "../../../lib/model";
 import { failure } from "../../../lib/http";
+import { isActiveRunConflict } from "../../../lib/db-errors";
 export async function POST(req: Request) {
   try {
     sameOrigin(req);
@@ -59,15 +60,7 @@ export async function POST(req: Request) {
     await dispatchRun(id, "sortify/organize", `organization-${id}`);
     return Response.json({ id }, { status: 201 });
   } catch (e) {
-    if (
-      typeof e === "object" &&
-      e !== null &&
-      "code" in e &&
-      e.code === "23505" &&
-      "constraint_name" in e &&
-      e.constraint_name === "one_active_run"
-    )
-      return failure(new Error("Run already active"));
+    if (isActiveRunConflict(e)) return failure(new Error("Run already active"));
     return failure(e);
   }
 }
